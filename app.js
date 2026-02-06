@@ -30,7 +30,20 @@ startBtn.addEventListener('click', async () => {
     } catch (e) { status.innerText = "AUTH ERROR"; }
 });
 
-// CORE PLAYBACK LOGIC
+// CRITICAL: Dedicated Eject function to clear memory
+function ejectHls() {
+    if (hls) {
+        hls.stopLoad();
+        hls.detachMedia();
+        hls.destroy();
+        hls = null;
+    }
+    audioTag.pause();
+    audioTag.src = "";
+    audioTag.load();
+}
+
+// Playback Logic
 async function playVideoAudio(index) {
     if (index >= videoQueue.length) {
         status.innerText = "END OF BROADCAST";
@@ -38,9 +51,9 @@ async function playVideoAudio(index) {
         return;
     }
 
+    ejectHls(); // Kill any ghost streams
     const { playlist, author } = videoQueue[index];
     
-    if (hls) hls.destroy();
     hls = new Hls();
     hls.loadSource(playlist);
     hls.attachMedia(audioTag);
@@ -49,29 +62,18 @@ async function playVideoAudio(index) {
         status.innerText = `ON-AIR: ${author}`;
         visualizer.classList.remove('hidden');
         visualizer.classList.add('active');
-        audioTag.play().catch(e => {
-            console.log("Autoplay blocked or failed:", e);
-            status.innerText = "TAP TO RESUME";
-        });
+        audioTag.play().catch(() => { status.innerText = "TAP TO PLAY"; });
     });
 }
 
-// SHARED SKIP/NEXT LOGIC
 function playNext() {
-    audioTag.pause();
     currentIndex++;
-    if (currentIndex < videoQueue.length) {
-        playVideoAudio(currentIndex);
-    } else {
-        status.innerText = "BANDS CLEAR";
-        visualizer.classList.remove('active');
-    }
+    status.innerText = "BUFFERING NEXT...";
+    playVideoAudio(currentIndex);
 }
 
-// Event listener for natural ending
-audioTag.onended = () => {
-    playNext();
-};
+// Natural end listener
+audioTag.onended = () => { playNext(); };
 
 document.getElementById('tuneBtn').addEventListener('click', async () => {
     status.innerText = "SCANNING BANDS...";
@@ -87,21 +89,17 @@ document.getElementById('tuneBtn').addEventListener('click', async () => {
         if (videoQueue.length > 0) {
             currentIndex = 0;
             playVideoAudio(currentIndex);
-        } else {
-            status.innerText = "NO SIGNALS";
-        }
+        } else { status.innerText = "NO SIGNALS"; }
     } catch (e) { status.innerText = "FETCH ERR"; }
 });
 
 // MANUAL SKIP BUTTON
 document.getElementById('skipBtn').addEventListener('click', () => { 
-    status.innerText = "SKIPPING...";
     playNext();
 });
 
 document.getElementById('stopBtn').addEventListener('click', () => { 
-    audioTag.pause(); 
-    if(hls) hls.destroy(); 
+    ejectHls();
     visualizer.classList.remove('active'); 
     status.innerText = "OFF-AIR"; 
 });
