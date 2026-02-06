@@ -36,8 +36,9 @@ function killPlayback() {
     }
     if (audioTag) {
         audioTag.pause();
-        audioTag.removeAttribute('src');
+        audioTag.src = "";
         audioTag.load();
+        audioTag.remove(); // Physically remove from DOM memory
         audioTag = null; 
     }
 }
@@ -50,22 +51,54 @@ async function playVideoAudio(index) {
     }
 
     killPlayback(); 
-    
-    audioTag = new Audio();
-    audioTag.onended = () => { playNext(); };
 
-    const { playlist, author } = videoQueue[index];
-    
-    hls = new Hls();
-    hls.loadSource(playlist);
-    hls.attachMedia(audioTag);
-    
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        status.innerText = `SIGNAL: ${author}`;
-        visualizer.classList.remove('hidden');
-        visualizer.classList.add('active');
-        audioTag.play().catch(() => { status.innerText = "TAP TO LISTEN"; });
-    });
+    // The "Pulse" delay: Gives the browser 50ms to flush the old buffer
+    setTimeout(() => {
+        audioTag = new Audio();
+        audioTag.onended = () => { playNext(); };
+
+        const { playlist, author } = videoQueue[index];
+        
+        hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 0 // Prevents the skip-stall
+        });
+
+        hls.loadSource(playlist);
+        hls.attachMedia(audioTag);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            status.innerText = `SIGNAL: ${author}`;
+            visualizer.classList.remove('hidden');
+            visualizer.classList.add('active');
+            
+            // Interaction-safe play
+            const playPromise = audioTag.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.log("Play error:", error);
+                    status.innerText = "TAP TO RESYNC";
+                    // If it stalls, we give it one more kick
+                    document.body.addEventListener('click', () => audioTag.play(), {once: true});
+                });
+            }
+        });
+
+        // Error Recovery for Mobile
+        hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+                switch (data.type) {
+                    case Hls.ErrorTypes.MEDIA_ERROR:
+                        hls.recoverMediaError();
+                        break;
+                    default:
+                        killPlayback();
+                        break;
+                }
+            }
+        });
+    }, 50);
 }
 
 function playNext() {
