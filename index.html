@@ -4,169 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BlueTune Studio</title>
-    <meta name="theme-color" content="#020617">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://esm.sh https://*.esm.sh https://bsky.social https://*.bsky.social https://video.bsky.app https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://esm.sh https://cdn.jsdelivr.net; connect-src 'self' https://esm.sh https://bsky.social https://video.bsky.app; media-src 'self' blob: https://video.bsky.app; style-src 'self' 'unsafe-inline';">
-    <style>
-        :root { --accent: #38bdf8; --bg: #020617; --card: #0f172a; --text: #f1f5f9; }
-        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        
-        /* Studio Booth Card */
-        .booth { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; border-radius: 24px; width: 100%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); text-align: center; }
-        
-        .monitor { background: #000; border-radius: 12px; padding: 20px; margin-bottom: 30px; border: 1px solid var(--accent); position: relative; }
-        h2 { font-weight: 800; letter-spacing: -0.025em; margin: 0 0 5px 0; color: var(--accent); }
-        #status { font-family: monospace; font-size: 11px; color: #94a3b8; text-transform: uppercase; height: 14px; }
-        
-        /* Modern Input Styling */
-        input { background: rgba(0,0,0,0.4); color: white; border: 1px solid #334155; padding: 14px; border-radius: 10px; width: 100%; box-sizing: border-box; margin-bottom: 12px; transition: border 0.3s; }
-        input:focus { outline: none; border-color: var(--accent); }
-        
-        /* Studio Controls */
-        button { width: 100%; padding: 16px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px; }
-        .btn-prime { background: var(--accent); color: #000; }
-        .btn-prime:hover { filter: brightness(1.2); transform: scale(1.02); }
-        .btn-prime:disabled { background: #1e293b; color: #475569; cursor: not-allowed; transform: none; }
-        
-        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-        .btn-sec { background: #1e293b; color: var(--text); border: 1px solid #334155; }
-        .btn-sec:hover { background: #334155; }
-
-        /* Sound Wave Visualizer */
-        .wave-container { display: flex; justify-content: center; align-items: center; gap: 4px; height: 40px; margin-top: 15px; }
-        .wave-bar { width: 3px; height: 4px; background: var(--accent); border-radius: 2px; transition: height 0.1s ease; }
-        .active .wave-bar { animation: wave 1s infinite ease-in-out; }
-        @keyframes wave { 0%, 100% { height: 4px; } 50% { height: 35px; } }
-
-        .hidden { display: none; }
-    </style>
+    <meta name="theme-color" content="#000000">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-    <div class="booth">
+    <div class="chassis">
         <div class="monitor">
-            <h2>STUDIO V2</h2>
-            <div id="status">INIT HARDWARE...</div>
+            <h2 id="dispTitle">BLUETUNE</h2>
             <div id="visualizer" class="wave-container hidden">
+                <div class="wave-bar" style="animation-delay: 0s"></div>
                 <div class="wave-bar" style="animation-delay: 0.1s"></div>
                 <div class="wave-bar" style="animation-delay: 0.2s"></div>
-                <div class="wave-bar" style="animation-delay: 0.3s"></div>
-                <div class="wave-bar" style="animation-delay: 0.4s"></div>
-                <div class="wave-bar" style="animation-delay: 0.5s"></div>
+                <div class="wave-bar" style="animation-delay: 0.1s"></div>
+                <div class="wave-bar" style="animation-delay: 0s"></div>
             </div>
+            <div id="status">INIT LIQUID CORE...</div>
         </div>
 
         <div id="loginSection">
-            <input type="text" id="handle" placeholder="Handle (name.bsky.social)">
-            <input type="password" id="app-pw" placeholder="App Password">
-            <button id="startBtn" class="btn-prime" disabled>LOADING ENGINE</button>
+            <input type="text" id="handle" placeholder="handle.bsky.social">
+            <input type="password" id="app-pw" placeholder="app-password">
+            <button id="startBtn" class="btn-prime" disabled>UPLINK</button>
         </div>
 
         <div id="tunerSection" class="hidden">
-            <button id="tuneBtn" class="btn-prime">GO LIVE</button>
+            <button id="tuneBtn" class="btn-prime">START BROADCAST</button>
             <div class="controls-grid">
                 <button id="skipBtn" class="btn-sec">SKIP</button>
-                <button id="stopBtn" class="btn-sec">OFF-AIR</button>
+                <button id="stopBtn" class="btn-sec">EJECT</button>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script type="module">
-        let BskyAgent;
-        const status = document.getElementById('status');
-        const startBtn = document.getElementById('startBtn');
-        const visualizer = document.getElementById('visualizer');
-        const audioTag = new Audio();
-        let agent = null;
-        let hls = null;
-        let videoQueue = [];
-        let currentIndex = 0;
-
-        const log = (msg) => { status.innerText = msg; };
-
-        // Engine Anchor
-        async function initEngine(retries = 5) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const module = await import('https://esm.sh/@atproto/api@0.13.20');
-                    BskyAgent = module.BskyAgent;
-                    log("READY FOR UPLINK");
-                    startBtn.disabled = false;
-                    startBtn.innerText = "CONNECT";
-                    return;
-                } catch (e) {
-                    log(`RETRYING... ${i+1}`);
-                    await new Promise(r => setTimeout(r, 1500));
-                }
-            }
-            log("UPLINK FAILED");
+    <script type="module" src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
         }
-        initEngine();
-
-        startBtn.addEventListener('click', async () => {
-            const handle = document.getElementById('handle').value.trim();
-            const pass = document.getElementById('app-pw').value.trim();
-            try {
-                log("CONNECTING...");
-                agent = new BskyAgent({ service: 'https://bsky.social' });
-                await agent.login({ identifier: handle, password: pass });
-                log("SYSTEM ONLINE");
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('tunerSection').classList.remove('hidden');
-            } catch (e) { log("AUTH ERROR"); }
-        });
-
-        async function playVideoAudio(playlistUrl, author) {
-            if (hls) { hls.destroy(); }
-            hls = new Hls();
-            hls.loadSource(playlistUrl);
-            hls.attachMedia(audioTag);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                log(`ON-AIR: ${author}`);
-                visualizer.classList.remove('hidden');
-                visualizer.classList.add('active');
-                audioTag.play();
-            });
-            audioTag.onended = () => {
-                currentIndex++;
-                if (currentIndex < videoQueue.length) {
-                    playVideoAudio(videoQueue[currentIndex].playlist, videoQueue[currentIndex].author);
-                } else {
-                    log("END OF BROADCAST");
-                    visualizer.classList.remove('active');
-                }
-            };
-        }
-
-        document.getElementById('tuneBtn').addEventListener('click', async () => {
-            log("SCANNING BANDS...");
-            try {
-                const response = await fetch(`https://bsky.social/xrpc/app.bsky.feed.getTimeline?limit=50`, {
-                    headers: { "Authorization": `Bearer ${agent.session.accessJwt}` }
-                });
-                const data = await response.json();
-                videoQueue = data.feed
-                    .filter(f => f.post.embed && f.post.embed.$type === 'app.bsky.embed.video#view')
-                    .map(f => ({ playlist: f.post.embed.playlist, author: f.post.author.handle }));
-
-                if (videoQueue.length > 0) {
-                    currentIndex = 0;
-                    playVideoAudio(videoQueue[0].playlist, videoQueue[0].author);
-                } else { log("NO SIGNALS"); }
-            } catch (e) { log("SCAN ERROR"); }
-        });
-
-        document.getElementById('skipBtn').addEventListener('click', () => {
-            audioTag.pause();
-            audioTag.dispatchEvent(new Event('ended'));
-        });
-
-        document.getElementById('stopBtn').addEventListener('click', () => {
-            audioTag.pause();
-            if (hls) hls.destroy();
-            visualizer.classList.remove('active');
-            log("OFF-AIR");
-        });
     </script>
 </body>
 </html>
