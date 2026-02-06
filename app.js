@@ -2,138 +2,58 @@ import { BskyAgent } from 'https://esm.sh/@atproto/api@0.13.20';
 
 const status = document.getElementById('status');
 const startBtn = document.getElementById('startBtn');
-const visualizer = document.getElementById('visualizer');
-const bars = document.querySelectorAll('.wave-bar');
-let audioTag = null; 
+const debugLog = document.getElementById('debugLog');
 let agent = null, hls = null, videoQueue = [], currentIndex = 0;
-let isBusy = false; 
 
-// --- TELEMETRY ---
-const debugLog = document.createElement('div');
-debugLog.id = "debugLog";
-debugLog.className = "hidden";
-document.body.appendChild(debugLog);
-
-const log = (msg) => {
+function log(msg) {
     const entry = document.createElement('div');
     entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
     debugLog.prepend(entry);
     console.log(msg);
-};
+}
 
-const debugToggle = document.getElementById('debugToggle');
-debugToggle.onclick = () => debugLog.classList.toggle('hidden');
+// Immediately clear any old session on load
+localStorage.clear();
+log("System Initialized: All local data wiped.");
 
-// --- STARTUP ---
-(async function init() {
-    localStorage.clear(); // Nuclear reset on every load
-    status.innerText = "SYSTEM PURGED";
-    startBtn.disabled = false;
-    startBtn.innerText = "IGNITE";
-    log("Station Initialized. Local storage cleared.");
-})();
-
-// --- THE NEW LOGIN LOGIC ---
 startBtn.addEventListener('click', async () => {
     const handle = document.getElementById('handle').value.trim();
     const pass = document.getElementById('app-pw').value.trim();
     
-    if (!handle || !pass) {
-        log("Error: Missing handle or app-password.");
-        return;
-    }
+    if (!handle || !pass) return log("Error: Credentials required.");
 
     try {
-        status.innerText = "PENETRATING STORM...";
-        log(`Attempting login for ${handle}...`);
+        status.innerText = "ATTEMPTING LOGIN...";
+        log(`Connecting to Bsky for: ${handle}`);
         
-        // Ensure we are using a fresh agent every single click
         agent = new BskyAgent({ service: 'https://bsky.social' });
+        const res = await agent.login({ identifier: handle, password: pass });
         
-        const loginRes = await agent.login({ 
-            identifier: handle, 
-            password: pass 
-        });
-        
-        if (loginRes.success) {
-            log("Login Successful! Transitioning UI...");
+        if (res.success) {
+            log("LOGIN SUCCESSFUL.");
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('tunerSection').classList.remove('hidden');
-            status.innerText = "ALTITUDE REACHED";
+            status.innerText = "ONLINE";
         }
-    } catch (e) { 
+    } catch (e) {
         log(`LOGIN FAILED: ${e.message}`);
-        status.innerText = "AUTH FAILED";
-        
-        // Specific help for common errors
-        if (e.message.includes("fetch")) {
-            log("Network Error: Is your Pixel blocking cross-site requests?");
-        }
+        status.innerText = "ERROR - SEE LOG";
     }
 });
 
-// --- CORE LOGIC (Rest of the previous script remains) ---
-async function clearCore() {
-    if (hls) { hls.stopLoad(); hls.detachMedia(); hls.destroy(); hls = null; }
-    if (audioTag) { audioTag.pause(); audioTag.src = ""; audioTag.load(); audioTag.remove(); audioTag = null; }
-    return new Promise(res => setTimeout(res, 300));
-}
-
-function animateRain() {
-    if (!audioTag || audioTag.paused) return;
-    bars.forEach(b => b.style.height = `${Math.floor(Math.random() * 80) + 20}px`);
-    requestAnimationFrame(animateRain);
-}
-
-async function playTrack(index) {
-    if (!videoQueue[index]) {
-        status.innerText = "HORIZON CLEAR";
-        visualizer.classList.remove('active');
-        isBusy = false;
-        return;
-    }
-    await clearCore();
-    audioTag = new Audio();
-    audioTag.onended = () => skipSignal();
-    hls = new Hls({ enableWorker: true, backBufferLength: 0 });
-    hls.loadSource(videoQueue[index].playlist);
-    hls.attachMedia(audioTag);
-    hls.on(Hls.Events.MANIFEST_PARSED, async () => {
-        status.innerText = `SIGNAL: ${videoQueue[index].author}`;
-        visualizer.classList.add('active');
-        animateRain();
-        try { await audioTag.play(); isBusy = false; }
-        catch (e) { status.innerText = "TAP TO RESYNC"; isBusy = false; }
-    });
-}
-
-async function skipSignal() {
-    if (isBusy) return;
-    isBusy = true;
-    currentIndex++;
-    await playTrack(currentIndex);
-}
-
+// Minimal Tuner Logic
 document.getElementById('tuneBtn').addEventListener('click', async () => {
-    if (isBusy) return;
-    status.innerText = "SCANNING...";
+    status.innerText = "FETCHING FEED...";
     try {
         const res = await fetch(`https://bsky.social/xrpc/app.bsky.feed.getTimeline?limit=50`, {
             headers: { "Authorization": `Bearer ${agent.session.accessJwt}` }
         });
-        const d = await res.json();
-        videoQueue = d.feed
+        const data = await res.json();
+        videoQueue = data.feed
             .filter(f => f.post.embed && f.post.embed.$type === 'app.bsky.embed.video#view')
             .map(f => ({ playlist: f.post.embed.playlist, author: f.post.author.handle }));
-        if (videoQueue.length > 0) { currentIndex = 0; isBusy = true; await playTrack(0); }
-        else { status.innerText = "NO SIGNALS"; }
-    } catch (e) { log(`SCAN ERROR: ${e.message}`); isBusy = false; }
-});
-
-document.getElementById('skipBtn').addEventListener('click', skipSignal);
-document.getElementById('stopBtn').addEventListener('click', async () => {
-    await clearCore();
-    visualizer.classList.remove('active');
-    status.innerText = "DISSIPATED";
-    isBusy = false;
+        
+        log(`Found ${videoQueue.length} videos.`);
+        status.innerText = `READY: ${videoQueue.length} TRACKS`;
+    } catch (e) { log(`FETCH ERROR: ${e.message}`); }
 });

@@ -3,41 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nimbus Audio Station</title>
-    <meta name="theme-color" content="#0c4a6e">
+    <title>Nimbus Debug Build</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
+    <h1>NIMBUS DEBUG</h1>
+    <div id="status">WAITING</div>
 
-    <div class="chassis">
-        <div class="monitor">
-            <h2 id="dispTitle">NIMBUS</h2>
-            <div id="visualizer" class="wave-container hidden">
-                <div class="wave-bar" style="animation-delay: 0s"></div>
-                <div class="wave-bar" style="animation-delay: 0.1s"></div>
-                <div class="wave-bar" style="animation-delay: 0.2s"></div>
-                <div class="wave-bar" style="animation-delay: 0.1s"></div>
-                <div class="wave-bar" style="animation-delay: 0s"></div>
-            </div>
-            <div id="status">ATMOSPHERE STABLE</div>
-        </div>
-
-        <div id="loginSection">
-            <input type="text" id="handle" placeholder="handle.bsky.social">
-            <input type="password" id="app-pw" placeholder="app-password">
-            <button id="startBtn" class="btn-prime" disabled>IGNITE</button>
-        </div>
-
-        <div id="tunerSection" class="hidden">
-            <button id="tuneBtn" class="btn-prime">SCAN HORIZON</button>
-            <div class="controls-grid">
-                <button id="skipBtn" class="btn-sec">SKIP</button>
-                <button id="stopBtn" class="btn-sec">DISSIPATE</button>
-            </div>
-        </div>
+    <div id="loginSection">
+        <input type="text" id="handle" placeholder="handle.bsky.social">
+        <input type="password" id="app-pw" placeholder="app-password">
+        <button id="startBtn">IGNITE LOGIN</button>
     </div>
+
+    <div id="tunerSection" class="hidden">
+        <button id="tuneBtn">SCAN FEED</button>
+        <button id="skipBtn">SKIP TRACK</button>
+    </div>
+
+    <div id="debugLog"></div>
 
     <script type="module" src="app.js"></script>
     <script>

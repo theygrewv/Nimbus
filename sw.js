@@ -1,38 +1,58 @@
-// VERSION BUMP: v19-deep-reset
-const CACHE_NAME = 'nimbus-v19-deep-reset';
+body {
+    background: #000;
+    color: #fff;
+    font-family: monospace;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-const ASSETS = [
-  './',
-  'index.html',
-  'style.css',
-  'app.js',
-  'manifest.json',
-  'icon.png',
-  'https://cdn.jsdelivr.net/npm/hls.js@latest'
-];
+#loginSection, #tunerSection {
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid #333;
+    padding: 20px;
+    margin-top: 20px;
+}
 
-self.addEventListener('install', (e) => {
-  self.skipWaiting(); 
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-  );
-});
+input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    background: #111;
+    color: #fff;
+    border: 1px solid #555;
+}
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    Promise.all([
-      self.clients.claim(), 
-      caches.keys().then(keys => {
-        return Promise.all(keys.map(key => {
-          if (key !== CACHE_NAME) return caches.delete(key);
-        }));
-      })
-    ])
-  );
-});
+button {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    background: #fff;
+    color: #000;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then(res => res || fetch(e.request))
-  );
-});
+#status {
+    color: #0f0;
+    margin: 20px 0;
+    font-weight: bold;
+}
+
+#debugLog {
+    width: 100%;
+    max-width: 500px;
+    height: 200px;
+    background: #111;
+    color: #0f0;
+    font-size: 12px;
+    padding: 10px;
+    overflow-y: scroll;
+    border: 1px solid #0f0;
+    margin-top: 20px;
+}
+
+.hidden { display: none; }
