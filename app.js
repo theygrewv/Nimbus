@@ -3,29 +3,27 @@ import { BskyAgent } from 'https://esm.sh/@atproto/api@0.13.20';
 const status = document.getElementById('status');
 const startBtn = document.getElementById('startBtn');
 const debugLog = document.getElementById('debugLog');
-let agent = null, hls = null, videoQueue = [], currentIndex = 0;
+const skipBtn = document.getElementById('skipBtn');
+let agent = null, hls = null, audioTag = null, videoQueue = [], currentIndex = 0;
 
 function log(msg) {
     const entry = document.createElement('div');
+    entry.style.borderBottom = "1px solid #111";
+    entry.style.padding = "4px 0";
     entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
     debugLog.prepend(entry);
-    console.log(msg);
 }
 
-// Immediately clear any old session on load
 localStorage.clear();
-log("System Initialized: All local data wiped.");
+log("SKELETON READY: Cache Purged.");
 
 startBtn.addEventListener('click', async () => {
     const handle = document.getElementById('handle').value.trim();
     const pass = document.getElementById('app-pw').value.trim();
-    
-    if (!handle || !pass) return log("Error: Credentials required.");
+    if (!handle || !pass) return log("Input Required.");
 
     try {
-        status.innerText = "ATTEMPTING LOGIN...";
-        log(`Connecting to Bsky for: ${handle}`);
-        
+        status.innerText = "CONNECTING...";
         agent = new BskyAgent({ service: 'https://bsky.social' });
         const res = await agent.login({ identifier: handle, password: pass });
         
@@ -33,19 +31,67 @@ startBtn.addEventListener('click', async () => {
             log("LOGIN SUCCESSFUL.");
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('tunerSection').classList.remove('hidden');
-            status.innerText = "ONLINE";
+            status.innerText = "CONNECTED";
         }
     } catch (e) {
-        log(`LOGIN FAILED: ${e.message}`);
-        status.innerText = "ERROR - SEE LOG";
+        log(`LOGIN ERROR: ${e.message}`);
+        status.innerText = "AUTH FAIL";
     }
 });
 
-// Minimal Tuner Logic
+async function clearAudio() {
+    if (hls) { hls.destroy(); hls = null; }
+    if (audioTag) {
+        audioTag.pause();
+        audioTag.src = "";
+        audioTag.remove();
+        audioTag = null;
+    }
+    return new Promise(res => setTimeout(res, 200));
+}
+
+async function playTrack(index) {
+    if (index >= videoQueue.length) {
+        log("End of Queue reached.");
+        status.innerText = "QUEUE EMPTY";
+        return;
+    }
+
+    await clearAudio();
+    log(`Tuning: ${videoQueue[index].author}`);
+    status.innerText = `PLAYING: ${videoQueue[index].author}`;
+
+    audioTag = new Audio();
+    audioTag.onended = () => { log("Track finished."); skipTrack(); };
+
+    hls = new Hls();
+    hls.loadSource(videoQueue[index].playlist);
+    hls.attachMedia(audioTag);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        audioTag.play().catch(e => {
+            log("Autoplay blocked. Tap screen.");
+            status.innerText = "TAP TO PLAY";
+            window.addEventListener('click', () => audioTag.play(), {once: true});
+        });
+    });
+
+    hls.on(Hls.Events.ERROR, (e, data) => {
+        if (data.fatal) log(`HLS Error: ${data.details}`);
+    });
+}
+
+async function skipTrack() {
+    currentIndex++;
+    log(`Skipping to index ${currentIndex}...`);
+    await playTrack(currentIndex);
+}
+
 document.getElementById('tuneBtn').addEventListener('click', async () => {
-    status.innerText = "FETCHING FEED...";
+    status.innerText = "SCANNING...";
     try {
-        const res = await fetch(`https://bsky.social/xrpc/app.bsky.feed.getTimeline?limit=50`, {
+        log("Fetching timeline (limit 100)...");
+        const res = await fetch(`https://bsky.social/xrpc/app.bsky.feed.getTimeline?limit=100`, {
             headers: { "Authorization": `Bearer ${agent.session.accessJwt}` }
         });
         const data = await res.json();
@@ -54,6 +100,13 @@ document.getElementById('tuneBtn').addEventListener('click', async () => {
             .map(f => ({ playlist: f.post.embed.playlist, author: f.post.author.handle }));
         
         log(`Found ${videoQueue.length} videos.`);
-        status.innerText = `READY: ${videoQueue.length} TRACKS`;
-    } catch (e) { log(`FETCH ERROR: ${e.message}`); }
+        if (videoQueue.length > 0) {
+            currentIndex = 0;
+            playTrack(0);
+        } else {
+            status.innerText = "NO VIDEOS FOUND";
+        }
+    } catch (e) { log(`SCAN ERROR: ${e.message}`); }
 });
+
+skipBtn.addEventListener('click', () => skipTrack());

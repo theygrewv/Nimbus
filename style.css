@@ -1,7 +1,7 @@
 body {
     background: #000;
     color: #fff;
-    font-family: monospace;
+    font-family: 'Courier New', Courier, monospace;
     padding: 20px;
     display: flex;
     flex-direction: column;
@@ -10,49 +10,58 @@ body {
 
 #loginSection, #tunerSection {
     width: 100%;
-    max-width: 400px;
-    border: 1px solid #333;
+    max-width: 450px;
+    border: 2px solid #333;
     padding: 20px;
-    margin-top: 20px;
+    margin-top: 10px;
 }
 
 input {
     width: 100%;
-    padding: 10px;
-    margin: 10px 0;
+    padding: 12px;
+    margin: 8px 0;
     background: #111;
-    color: #fff;
-    border: 1px solid #555;
+    color: #0f0;
+    border: 1px solid #0f0;
+    box-sizing: border-box;
 }
 
 button {
     width: 100%;
     padding: 15px;
-    margin: 10px 0;
-    background: #fff;
+    margin: 8px 0;
+    background: #0f0;
     color: #000;
     border: none;
     font-weight: bold;
     cursor: pointer;
+    text-transform: uppercase;
+}
+
+button:disabled {
+    background: #333;
+    color: #666;
 }
 
 #status {
-    color: #0f0;
-    margin: 20px 0;
-    font-weight: bold;
+    color: #ffff00;
+    margin: 15px 0;
+    font-size: 1.2rem;
+    text-align: center;
 }
 
 #debugLog {
     width: 100%;
     max-width: 500px;
-    height: 200px;
-    background: #111;
+    height: 250px;
+    background: #050505;
     color: #0f0;
     font-size: 12px;
     padding: 10px;
     overflow-y: scroll;
-    border: 1px solid #0f0;
+    border: 1px solid #333;
     margin-top: 20px;
+    line-height: 1.4;
 }
 
 .hidden { display: none; }
